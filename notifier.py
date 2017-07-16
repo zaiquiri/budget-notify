@@ -40,16 +40,16 @@ def get_credentials():
     store = Storage(credential_path)
     credentials = store.get()
     if not credentials or credentials.invalid:
+	Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] No stored credentials, starting client-secret flow...\n")
         flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
         flow.user_agent = APPLICATION_NAME
 	credentials = tools.run_flow(flow, store, flags)
     return credentials
 
 def main():
-    Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] Calling main()...\n")
     values = get_raw_values()
     if not values:
-        # log some error here?
+	Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] There was an error fetching data from Sheets.\n")
         send_message("There was an error fetching budget data.")
 
     spent = get_this_week_spend(values)
@@ -58,7 +58,6 @@ def main():
     send_message("Week " + this_week + ": As of " + latest_day + " you've spent " + '${:,.2f}'.format(spent))
 
 def get_this_week_spend(values):
-    Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] Calculating spend...\n")
     # indices
     week = 11
     amount = 4
@@ -73,7 +72,6 @@ def get_this_week_spend(values):
             return abs(total)
 
 def get_raw_values():
-    Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] Getting values...\n")
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?'
