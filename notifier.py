@@ -1,55 +1,52 @@
+#!/usr/bin/env python
+
 from __future__ import print_function
 import httplib2
 import os
+import calendar
 
 from apiclient import discovery
+from datetime import datetime
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
 from twilio.rest import Client
 
+Logger = open('/home/pi/projects/budget-notify/log.txt', 'a')
+LOG_TIME_FORMAT = "%m/%d/%y %H:%M"
+Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] Starting script...\n")
+
 try:
-    import argparse
-    flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
-except ImportError:
-    flags = None
+  import argparse
+  flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
+except:
+  flags = None
+
 
 SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly'
-CLIENT_SECRET_FILE = 'client_secret.json'
+CLIENT_SECRET_FILE = '/home/pi/projects/budget-notify/client_secret.json'
 APPLICATION_NAME = 'budget-notify'
 WEEKLY_BUDGET = 100
 
-TWILIO_SID = os.environ['TWILIO_SID']
-TWILIO_TOKEN = os.environ['TWILIO_TOKEN']
 SPREADSHEET_ID = os.environ['TRANSACTIONS_SPREADSHEET_ID']
 NOTIFICATION_PHONE = os.environ['NOTIFICATION_PHONE']
+TWILIO_SID = os.environ['TWILIO_SID']
+TWILIO_TOKEN = os.environ['TWILIO_TOKEN']
 TWILIO_PHONE = os.environ['TWILIO_PHONE']
-
 TWILIO_CLIENT = Client(TWILIO_SID, TWILIO_TOKEN)
 
-
 def get_credentials():
-    home_dir = os.path.expanduser('~')
-    credential_dir = os.path.join(home_dir, '.credentials')
-    if not os.path.exists(credential_dir):
-        os.makedirs(credential_dir)
-    credential_path = os.path.join(credential_dir,
-                                   'sheets.googleapis.com-python-quickstart.json')
-
+    credential_path = '/home/pi/projects/budget-notify/credentials.json'
     store = Storage(credential_path)
     credentials = store.get()
     if not credentials or credentials.invalid:
         flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
         flow.user_agent = APPLICATION_NAME
-        if flags:
-            credentials = tools.run_flow(flow, store, flags)
-        else: # Needed only for compatibility with Python 2.6
-            credentials = tools.run(flow, store)
-        print('Storing credentials to ' + credential_path)
+	credentials = tools.run_flow(flow, store, flags)
     return credentials
 
 def main():
-
+    Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] Calling main()...\n")
     values = get_raw_values()
     if not values:
         # log some error here?
@@ -57,18 +54,11 @@ def main():
 
     spent = get_this_week_spend(values)
     this_week = values[0][11];
-    if spent > WEEKLY_BUDGET:
-        excess = spent - WEEKLY_BUDGET
-        # TODO: Random derogatory phrase
-        send_message(this_week + ": DO YOU WANT THINGS?? You have exceeded your budget by $" + str(excess))
-    if spent < WEEKLY_BUDGET:
-        remaining = WEEKLY_BUDGET - spent
-        send_message(this_week + ": You have $" + str(remaining) + " remaining this week.")
-    if spent == WEEKLY_BUDGET:
-        send_message(this_week + ": STOP!!! NO MORE FUNDS FOR THIS WEEK!")
-
+    latest_day = calendar.day_name[datetime.strptime(values[0][0], '%m/%d/%Y').weekday()]
+    send_message("Week " + this_week + ": As of " + latest_day + " you've spent " + '${:,.2f}'.format(spent))
 
 def get_this_week_spend(values):
+    Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] Calculating spend...\n")
     # indices
     week = 11
     amount = 4
@@ -83,6 +73,7 @@ def get_this_week_spend(values):
             return abs(total)
 
 def get_raw_values():
+    Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] Getting values...\n")
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?'
@@ -99,12 +90,12 @@ def is_valid_expense(row):
 
 
 def send_message(message):
+    Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] Sending message...\n")
     TWILIO_CLIENT.messages.create(
             to=NOTIFICATION_PHONE,
             from_=TWILIO_PHONE,
             body=message
             )
-
 
 if __name__ == '__main__':
     main()
