@@ -35,6 +35,18 @@ TWILIO_TOKEN = os.environ['TWILIO_TOKEN']
 TWILIO_PHONE = os.environ['TWILIO_PHONE']
 TWILIO_CLIENT = Client(TWILIO_SID, TWILIO_TOKEN)
 
+INVALID_PAYMENTS = [
+    "PAYROLL",
+    "Monthly Interest Paid",
+    "Manhatanville Mezz",
+    "Withdrawal to 360 Savings",
+    "Withdrawal from CAPITAL ONE ONLINE PMT",
+    "Withdrawal from CITI CARD ONLINE PAYMENT",
+    "Withdrawal from CHASE CREDIT CRD EPAY",
+    "ONLINE PAYMENT, THANK YOU",
+    "Payment Thank You - Web",
+    "CITICARDS CASH REWARD"]
+
 def get_credentials():
     credential_path = '/home/pi/projects/budget-notify/credentials.json'
     store = Storage(credential_path)
@@ -84,8 +96,10 @@ def get_raw_values():
     return result.get('values', [])
 
 def is_valid_expense(row):
-    return row[4] < 0
-
+    for desc in INVALID_PAYMENTS.iteritems():
+        if row[3].lower().find(desc.lower()) != -1:
+            return False
+    return True;
 
 def send_message(message):
     Logger.write("[" + datetime.now().strftime(LOG_TIME_FORMAT) + "] Sending message...\n")
