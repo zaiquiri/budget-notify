@@ -96,7 +96,7 @@ def get_raw_values():
     return result.get('values', [])
 
 def is_valid_expense(row):
-    for desc in INVALID_PAYMENTS.iteritems():
+    for desc in INVALID_PAYMENTS:
         if row[3].lower().find(desc.lower()) != -1:
             return False
     return True;
